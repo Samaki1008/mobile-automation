@@ -1,0 +1,44 @@
+name: E2E Automation Tests
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Install Allure (CLI)
+      run: |
+        curl -o allure-2.27.0.tgz -L "https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz"
+        sudo tar -zxvf allure-2.27.0.tgz -C /opt/
+        sudo ln -s /opt/allure-2.27.0/bin/allure /usr/bin/allure
+        allure --version
+
+    - name: Run Behave with Allure reporting
+      run: |
+        behave features/ --format=allure_behave.formatter:AllureFormatter \
+        -o reports/allure-results
+
+    - name: Generate Allure HTML report
+      run: |
+        allure generate reports/allure-results --clean -o reports/allure-report
+
+    - name: Deploy reports to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./reports/allure-report
